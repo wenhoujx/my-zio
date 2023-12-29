@@ -51,26 +51,22 @@ final class AccessPartiallyApplied[R]:
     ZIO.identity.map(f)
 
 object console:
-  trait Console:
-    def printLine(line: => String): ZIO[Any, Nothing, Unit]
-    def getLine: ZIO[Any, Nothing, String]
-
+  type Console = Has[Console.Service]
   object Console:
-    lazy val live: ZIO[Any, Nothing, Console] = ZIO.succeed(make)
-    lazy val make: Console =
+    trait Service:
+      def printLine(line: => String): ZIO[Any, Nothing, Unit]
+      def getLine: ZIO[Any, Nothing, String]
+    lazy val live: ZIO[Any, Nothing, Service] = ZIO.succeed(make)
+    lazy val make: Service =
       new:
         override def getLine: ZIO[Any, Nothing, String] =
           ZIO.succeed(scala.io.StdIn.readLine())
         override def printLine(line: => String): ZIO[Any, Nothing, Unit] =
           ZIO.succeed(println(line))
-  def printLine(line: => String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.printLine(line))
-  def getLine: ZIO[Console, Nothing, String] =
-    ZIO.accessM(_.getLine)
 
 object Runtime:
   object default:
-    def unsafeRunSync[E, A](zio: => ZIO[Has[ZENV], E, A]): Either[E, A] =
+    def unsafeRunSync[E, A](zio: => ZIO[ZENV, E, A]): Either[E, A] =
       zio.provide(Has(console.Console.make)).run(())
 
 type ZENV = console.Console

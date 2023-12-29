@@ -8,7 +8,7 @@ object MainApp extends App:
   )
 
   lazy val program = for
-    console_ <- ZIO.identity[console.Console]
+    console_ <- ZIO.identity[console.Console.Service]
     _ <- console_.printLine("-" * 20)
     _ <- console_.printLine("what's your name?")
     name <- ZIO.succeed("Wenshuai")
