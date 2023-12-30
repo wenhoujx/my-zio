@@ -94,3 +94,16 @@ object Has:
 object ZLayer:
   def succeed[A: ClassTag](a: => A): ZIO[Any, Nothing, Has[A]] =
     ZIO.succeed(Has(a))
+  def fromService[R <: Has[S], S: ClassTag, A: ClassTag](
+      f: S => A
+  ): ZIO[R, Nothing, Has[A]] =
+    ZIO.fromFunction(r => Has(f(r.get)))
+  def fromServices[
+      R <: Has[S1] & Has[S2],
+      S1: ClassTag,
+      S2: ClassTag,
+      A: ClassTag
+  ](
+      f: (S1, S2) => A
+  ): ZIO[R, Nothing, Has[A]] =
+    ZIO.fromFunction(r => Has(f(r.get[S1], r.get[S2])))

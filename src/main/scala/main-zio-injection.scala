@@ -20,7 +20,7 @@ object bizLogic:
     trait Service:
       def isGoogleResultEven(topic: String): ZIO[Any, Nothing, Boolean]
     lazy val live: ZIO[google.Google, Nothing, BizLogic] =
-      ZIO.fromFunction(env => Has(make(env.get[google.Google.Service])))
+      ZLayer.fromService(make)
     def make(g: google.Google.Service): Service = new:
       override def isGoogleResultEven(
           topic: String
@@ -34,11 +34,8 @@ object controller:
       def run: ZIO[Any, Nothing, Unit]
     lazy val live
         : ZIO[bizLogic.BizLogic & console.Console, Nothing, Controller] =
-      ZIO.fromFunction { env =>
-        val bl = env.get[bizLogic.BizLogic.Service]
-        val con = env.get[console.Console.Service]
-        Has(make(bl, con))
-      }
+      ZLayer.fromServices(make)
+
     def make(
         bl: bizLogic.BizLogic.Service,
         con: console.Console.Service
