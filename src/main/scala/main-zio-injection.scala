@@ -1,23 +1,27 @@
 package myzio
 
 import scala.collection.immutable.LazyList.cons
+import zio.http.Decompression.No
 
-trait Google:
-  def count(topic: String): ZIO[Any, Nothing, Int]
-object GoogleImpl:
-  lazy val live: ZIO[Any, Nothing, Google] = ZIO.fromFunction(_ => make)
-  lazy val make: Google = new:
-    override def count(topic: String): ZIO[Any, Nothing, Int] =
-      ZIO.succeed(if topic == "cat" then 1 else 2)
+object google:
+  type Google = Has[Google.Service]
+  object Google:
+    trait Service:
+      def count(topic: String): ZIO[Any, Nothing, Int]
+    lazy val live: ZIO[Any, Nothing, Google.Service] =
+      ZIO.fromFunction(_ => make)
+    lazy val make: Google.Service = new:
+      override def count(topic: String): ZIO[Any, Nothing, Int] =
+        ZIO.succeed(if topic == "cat" then 1 else 2)
 
 object bizLogic:
   type BizLogic = Has[BizLogic.Service]
   object BizLogic:
     trait Service:
       def isGoogleResultEven(topic: String): ZIO[Any, Nothing, Boolean]
-    lazy val live: ZIO[Google, Nothing, BizLogic.Service] =
+    lazy val live: ZIO[google.Google.Service, Nothing, BizLogic.Service] =
       ZIO.fromFunction(make)
-    def make(g: Google): Service = new:
+    def make(g: google.Google.Service): Service = new:
       override def isGoogleResultEven(
           topic: String
       ): ZIO[Any, Nothing, Boolean] =
@@ -26,16 +30,16 @@ object bizLogic:
 object DependencyGraph:
   lazy val live: ZIO[Any, Nothing, bizLogic.BizLogic.Service] =
     for {
-      g <- GoogleImpl.live
+      g <- google.Google.live
       bl <- bizLogic.BizLogic.live.provide(g)
     } yield bl
   lazy val make: bizLogic.BizLogic.Service =
-    bizLogic.BizLogic.make(GoogleImpl.make)
+    bizLogic.BizLogic.make(google.Google.make)
 
 object MainZioInjection extends scala.App:
   Runtime.default.unsafeRunSync(
     for
-      g <- GoogleImpl.live
+      g <- google.Google.live
       bl <- bizLogic.BizLogic.live.provide(g)
       p <- program.provideSome[ZENV](Has(bl) union _)
     yield p
