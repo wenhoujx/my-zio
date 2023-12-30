@@ -1,8 +1,5 @@
 package myzio
 
-import scala.collection.immutable.LazyList.cons
-import zio.http.Decompression.No
-
 object google:
   type Google = Has[Google.Service]
   object Google:
@@ -59,9 +56,10 @@ object MainZioInjection extends scala.App:
     controller.run.provideLayer(layer)
   )
 
-  lazy val layer: ZLayer[Any, Nothing, controller.Controller] =
+  lazy val layer: ZLayer[console.Console, Nothing, controller.Controller] =
     (for
-      (g, con) <- google.Google.live.zip(console.Console.live)
+      con <- ZLayer.identity[console.Console]
+      g <- google.Google.live
       bl <- bizLogic.BizLogic.live.provide(g)
       c <- controller.Controller.live.provide(bl ++ con)
     yield c)

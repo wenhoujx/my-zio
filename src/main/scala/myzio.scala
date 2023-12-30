@@ -98,6 +98,7 @@ object Has:
       a.map(tag.toString()).asInstanceOf[S]
 
 final class ZLayer[-R, +E, +A](val zio: ZIO[R, E, A]):
+
   def map[B](f: A => B): ZLayer[R, E, B] =
     ZLayer(zio.map(f))
   def flatMap[R1 <: R, E1 >: E, B](
@@ -114,6 +115,8 @@ final class ZLayer[-R, +E, +A](val zio: ZIO[R, E, A]):
     ZLayer(zio.provideSome(f))
 
 object ZLayer:
+  def identity[R]: ZLayer[R, Nothing, R] =
+    ZLayer(ZIO.identity[R])
   def succeed[A: ClassTag](a: => A): ZLayer[Any, Nothing, Has[A]] =
     ZLayer(ZIO.succeed(Has(a)))
   def fromService[R <: Has[S], S: ClassTag, A: ClassTag](
