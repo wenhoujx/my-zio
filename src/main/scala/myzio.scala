@@ -61,7 +61,7 @@ object console:
     trait Service:
       def printLine(line: => String): ZIO[Any, Nothing, Unit]
       def getLine: ZIO[Any, Nothing, String]
-    lazy val live: ZIO[Any, Nothing, Console] = ZLayer.succeed(make)
+    lazy val live: ZLayer[Any, Nothing, Console] = ZLayer.succeed(make)
     lazy val make: Service =
       new:
         override def getLine: ZIO[Any, Nothing, String] =
@@ -91,13 +91,14 @@ object Has:
     def get[S](using tag: ClassTag[S])(using A => Has[S]): S =
       a.map(tag.toString()).asInstanceOf[S]
 
+final class ZLayer[-R, +E, +A](val zio: ZIO[R, E, A])
 object ZLayer:
-  def succeed[A: ClassTag](a: => A): ZIO[Any, Nothing, Has[A]] =
-    ZIO.succeed(Has(a))
+  def succeed[A: ClassTag](a: => A): ZLayer[Any, Nothing, Has[A]] =
+    ZLayer(ZIO.succeed(Has(a)))
   def fromService[R <: Has[S], S: ClassTag, A: ClassTag](
       f: S => A
-  ): ZIO[R, Nothing, Has[A]] =
-    ZIO.fromFunction(r => Has(f(r.get)))
+  ): ZLayer[R, Nothing, Has[A]] =
+    ZLayer(ZIO.fromFunction(r => Has(f(r.get))))
   def fromServices[
       R <: Has[S1] & Has[S2],
       S1: ClassTag,
@@ -105,5 +106,5 @@ object ZLayer:
       A: ClassTag
   ](
       f: (S1, S2) => A
-  ): ZIO[R, Nothing, Has[A]] =
-    ZIO.fromFunction(r => Has(f(r.get[S1], r.get[S2])))
+  ): ZLayer[R, Nothing, Has[A]] =
+    ZLayer(ZIO.fromFunction(r => Has(f(r.get[S1], r.get[S2]))))

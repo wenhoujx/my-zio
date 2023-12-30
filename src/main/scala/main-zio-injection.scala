@@ -8,7 +8,7 @@ object google:
   object Google:
     trait Service:
       def count(topic: String): ZIO[Any, Nothing, Int]
-    lazy val live: ZIO[Any, Nothing, Google] =
+    lazy val live: ZLayer[Any, Nothing, Google] =
       ZLayer.succeed(make)
     lazy val make: Google.Service = new:
       override def count(topic: String): ZIO[Any, Nothing, Int] =
@@ -19,7 +19,7 @@ object bizLogic:
   object BizLogic:
     trait Service:
       def isGoogleResultEven(topic: String): ZIO[Any, Nothing, Boolean]
-    lazy val live: ZIO[google.Google, Nothing, BizLogic] =
+    lazy val live: ZLayer[google.Google, Nothing, BizLogic] =
       ZLayer.fromService(make)
     def make(g: google.Google.Service): Service = new:
       override def isGoogleResultEven(
@@ -33,7 +33,7 @@ object controller:
     trait Service:
       def run: ZIO[Any, Nothing, Unit]
     lazy val live
-        : ZIO[bizLogic.BizLogic & console.Console, Nothing, Controller] =
+        : ZLayer[bizLogic.BizLogic & console.Console, Nothing, Controller] =
       ZLayer.fromServices(make)
 
     def make(
@@ -61,7 +61,7 @@ object MainZioInjection extends scala.App:
 
   lazy val program =
     (for
-      (g, con) <- google.Google.live.zip(console.Console.live)
-      bl <- bizLogic.BizLogic.live.provide(g)
-      c <- controller.Controller.live.provide(bl ++ con)
+      (g, con) <- google.Google.live.zio.zip(console.Console.live.zio)
+      bl <- bizLogic.BizLogic.live.zio.provide(g)
+      c <- controller.Controller.live.zio.provide(bl ++ con)
     yield c)
