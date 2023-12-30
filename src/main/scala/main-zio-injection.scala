@@ -55,13 +55,13 @@ object controller:
 
 object MainZioInjection extends scala.App:
   Runtime.default.unsafeRunSync(
-    program.flatMap(_.get[controller.Controller.Service].run)
+    program.zio.flatMap(_.get[controller.Controller.Service].run)
     // controller.run.provide(program)
   )
 
   lazy val program =
     (for
-      (g, con) <- google.Google.live.zio.zip(console.Console.live.zio)
-      bl <- bizLogic.BizLogic.live.zio.provide(g)
-      c <- controller.Controller.live.zio.provide(bl ++ con)
+      (g, con) <- google.Google.live.zip(console.Console.live)
+      bl <- bizLogic.BizLogic.live.provide(g)
+      c <- controller.Controller.live.provide(bl ++ con)
     yield c)
