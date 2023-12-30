@@ -30,6 +30,9 @@ case class ZIO[-R, +E, +A](run: R => Either[E, A]):
   def provideSome[R0](f: R0 => R): ZIO[R0, E, A] =
     ZIO.accessM(r0 => provide(f(r0)))
 
+  def provideLayer[R1, E1 >: E](zLayer: ZLayer[R1, E1, R]): ZIO[R1, E1, A] =
+    zLayer.zio.flatMap(r => provide(r))
+
 object ZIO:
   def succeed[A](a: => A): ZIO[Any, Nothing, A] = ZIO(_ => Right(a))
   def fail[E](e: => E): ZIO[Any, E, Nothing] = ZIO(_ => Left(e))
@@ -72,9 +75,12 @@ object console:
 object Runtime:
   object default:
     def unsafeRunSync[E, A](zio: => ZIO[ZENV, E, A]): Either[E, A] =
-      zio.provide(Has(console.Console.make)).run(())
+      zio.provideLayer(ZENV.live).run(())
 
 type ZENV = console.Console
+object ZENV:
+  lazy val live: ZLayer[Any, Nothing, ZENV] =
+    console.Console.live
 
 final class Has[A] private (private val map: Map[String, Any])
 
