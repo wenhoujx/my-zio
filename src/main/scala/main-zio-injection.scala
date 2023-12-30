@@ -27,31 +27,41 @@ object bizLogic:
       ): ZIO[Any, Nothing, Boolean] =
         g.count(topic).map(_ % 2 == 0)
 
-object DependencyGraph:
-  lazy val live: ZIO[Any, Nothing, bizLogic.BizLogic.Service] =
-    for {
-      g <- google.Google.live
-      bl <- bizLogic.BizLogic.live.provide(g)
-    } yield bl
-  lazy val make: bizLogic.BizLogic.Service =
-    bizLogic.BizLogic.make(google.Google.make)
+object controller:
+  type Controller = Has[Controller.Service]
+  object Controller:
+    trait Service:
+      def run: ZIO[Any, Nothing, Unit]
+    lazy val live: ZIO[bizLogic.BizLogic & console.Console, Nothing, Service] =
+      ZIO.fromFunction { env =>
+        val bl = env.get[bizLogic.BizLogic.Service]
+        val con = env.get[console.Console.Service]
+        make(bl, con)
+      }
+    def make(
+        bl: bizLogic.BizLogic.Service,
+        con: console.Console.Service
+    ): Service =
+      new:
+        override def run: ZIO[Any, Nothing, Unit] =
+          for
+            _ <- con.printLine("-" * 50)
+            cat <- bl.isGoogleResultEven("cat")
+            _ <- con.printLine(cat.toString)
+            dog <- bl.isGoogleResultEven("dog")
+            _ <- con.printLine(dog.toString)
+            _ <- con.printLine("-" * 50)
+          yield ()
 
 object MainZioInjection extends scala.App:
   Runtime.default.unsafeRunSync(
-    for
-      g <- google.Google.live
-      bl <- bizLogic.BizLogic.live.provide(g)
-      p <- program.provideSome[ZENV](Has(bl) union _)
-    yield p
+    program.flatMap(_.run)
   )
 
   lazy val program =
     for
-      env <- ZIO.identity[console.Console & bizLogic.BizLogic]
-      _ <- env.get[console.Console.Service].printLine("-" * 50)
-      cat <- env.get[bizLogic.BizLogic.Service].isGoogleResultEven("cat")
-      _ <- env.get[console.Console.Service].printLine(cat.toString)
-      dog <- env.get[bizLogic.BizLogic.Service].isGoogleResultEven("dog")
-      _ <- env.get[console.Console.Service].printLine(dog.toString)
-      _ <- env.get[console.Console.Service].printLine("-" * 50)
-    yield ()
+      g <- google.Google.live
+      bl <- bizLogic.BizLogic.live.provide(g)
+      con <- console.Console.live
+      c <- controller.Controller.live.provide(Has(bl) ++ Has(con))
+    yield c
