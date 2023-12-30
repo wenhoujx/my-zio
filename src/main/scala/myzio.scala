@@ -99,20 +99,30 @@ object Has:
 
 final class ZLayer[-R, +E, +A](val zio: ZIO[R, E, A]):
 
-  def map[B](f: A => B): ZLayer[R, E, B] =
+  inline def map[B](f: A => B): ZLayer[R, E, B] =
     ZLayer(zio.map(f))
-  def flatMap[R1 <: R, E1 >: E, B](
+  inline def flatMap[R1 <: R, E1 >: E, B](
       f: A => ZLayer[R1, E1, B]
   ): ZLayer[R1, E1, B] =
     ZLayer(zio.flatMap(a => f(a).zio))
-  def zip[R1 <: R, E1 >: E, B](
+  inline def zip[R1 <: R, E1 >: E, B](
       that: ZLayer[R1, E1, B]
   ): ZLayer[R1, E1, (A, B)] =
     ZLayer(zio.zip(that.zio))
-  def provide(r: => R): ZLayer[Any, E, A] =
+  inline def provide(r: => R): ZLayer[Any, E, A] =
     ZLayer(zio.provide(r))
-  def provideSome[R0](f: R0 => R): ZLayer[R0, E, A] =
+  inline def provideSome[R0](f: R0 => R): ZLayer[R0, E, A] =
     ZLayer(zio.provideSome(f))
+
+  def >>>[E1 >: E, B <: Has[?]](
+      that: ZLayer[A, E1, B]
+  ): ZLayer[R, E1, B] =
+    this.flatMap(a => that.provide(a))
+
+  def ++[R1 <: Has[?], B <: Has[?], E1 >: E](that: ZLayer[R1, E1, B])(using
+      view: A <:< Has[?]
+  ): ZLayer[R & R1, E1, A & B] =
+    this.zip(that).map((a, b) => view(a).union(b).asInstanceOf[A & B])
 
 object ZLayer:
   def identity[R]: ZLayer[R, Nothing, R] =

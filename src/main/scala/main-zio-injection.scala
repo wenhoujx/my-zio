@@ -57,9 +57,8 @@ object MainZioInjection extends scala.App:
   )
 
   lazy val layer: ZLayer[console.Console, Nothing, controller.Controller] =
-    (for
-      con <- ZLayer.identity[console.Console]
-      g <- google.Google.live
-      bl <- bizLogic.BizLogic.live.provide(g)
-      c <- controller.Controller.live.provide(bl ++ con)
-    yield c)
+    val bizLayer: ZLayer[Any, Nothing, bizLogic.BizLogic] =
+      google.Google.live >>> bizLogic.BizLogic.live
+    val consoleLayer: ZLayer[console.Console, Nothing, console.Console] =
+      ZLayer.identity[console.Console]
+    (bizLayer ++ consoleLayer) >>> controller.Controller.live
