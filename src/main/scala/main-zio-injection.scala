@@ -9,7 +9,7 @@ object google:
     trait Service:
       def count(topic: String): ZIO[Any, Nothing, Int]
     lazy val live: ZIO[Any, Nothing, Google] =
-      ZIO.fromFunction(_ => Has(make))
+      ZLayer.succeed(make)
     lazy val make: Google.Service = new:
       override def count(topic: String): ZIO[Any, Nothing, Int] =
         ZIO.succeed(if topic == "cat" then 1 else 2)
@@ -53,14 +53,18 @@ object controller:
             _ <- con.printLine(dog.toString)
             _ <- con.printLine("-" * 50)
           yield ()
+  lazy val run: ZIO[controller.Controller, Nothing, Unit] =
+    ZIO.accessM(_.get[Controller.Service].run)
 
 object MainZioInjection extends scala.App:
-  Runtime.default.unsafeRunSync(program)
+  Runtime.default.unsafeRunSync(
+    program.flatMap(_.get[controller.Controller.Service].run)
+    // controller.run.provide(program)
+  )
 
   lazy val program =
     (for
-      g <- google.Google.live
+      (g, con) <- google.Google.live.zip(console.Console.live)
       bl <- bizLogic.BizLogic.live.provide(g)
-      con <- console.Console.live
       c <- controller.Controller.live.provide(bl ++ con)
-    yield c).flatMap(_.get[controller.Controller.Service].run)
+    yield c)

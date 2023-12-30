@@ -1,5 +1,17 @@
 scalaVersion := "3.3.1"
 
+ThisBuild / scalacOptions ++=
+  Seq(
+    "-deprecation",
+    "-feature",
+    "-language:implicitConversions",
+    "-unchecked",
+    "-Xfatal-warnings",
+    "-Yexplicit-nulls",
+    "-Ykind-projector",
+    "-Ysafe-init",
+  ) ++ Seq("-rewrite", "-indent") ++ Seq("-source", "future")
+
 libraryDependencies ++= Seq(
   "dev.zio"       %% "zio"            % "2.0.19",
   "dev.zio"       %% "zio-json"       % "0.6.2",

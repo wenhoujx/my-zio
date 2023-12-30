@@ -3,6 +3,11 @@ package myzio
 import scala.reflect.ClassTag
 
 case class ZIO[-R, +E, +A](run: R => Either[E, A]):
+  def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    for
+      a <- this
+      b <- that
+    yield (a, b)
 
   def flatMap[R1 <: R, E1 >: E, B](azb: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZIO { r =>
@@ -56,7 +61,7 @@ object console:
     trait Service:
       def printLine(line: => String): ZIO[Any, Nothing, Unit]
       def getLine: ZIO[Any, Nothing, String]
-    lazy val live: ZIO[Any, Nothing, Console] = ZIO.succeed(Has(make))
+    lazy val live: ZIO[Any, Nothing, Console] = ZLayer.succeed(make)
     lazy val make: Service =
       new:
         override def getLine: ZIO[Any, Nothing, String] =
@@ -85,3 +90,7 @@ object Has:
 
     def get[S](using tag: ClassTag[S])(using A => Has[S]): S =
       a.map(tag.toString()).asInstanceOf[S]
+
+object ZLayer:
+  def succeed[A: ClassTag](a: => A): ZIO[Any, Nothing, Has[A]] =
+    ZIO.succeed(Has(a))
