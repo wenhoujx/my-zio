@@ -56,7 +56,7 @@ object console:
     trait Service:
       def printLine(line: => String): ZIO[Any, Nothing, Unit]
       def getLine: ZIO[Any, Nothing, String]
-    lazy val live: ZIO[Any, Nothing, Service] = ZIO.succeed(make)
+    lazy val live: ZIO[Any, Nothing, Console] = ZIO.succeed(Has(make))
     lazy val make: Service =
       new:
         override def getLine: ZIO[Any, Nothing, String] =
