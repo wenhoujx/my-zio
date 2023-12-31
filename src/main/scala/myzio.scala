@@ -31,8 +31,20 @@ case class ZIO[-R, +E, +A](run: R => Either[E, A]):
   def provideSome[R0](f: R0 => R): ZIO[R0, E, A] =
     ZIO.accessM(r0 => provide(f(r0)))
 
-  def provideLayer[R1, E1 >: E](zLayer: ZLayer[R1, E1, R]): ZIO[R1, E1, A] =
-    zLayer.zio.flatMap(r => provide(r))
+  def provideCustomLayer[E1 >: E, B <: Has[?]](layer: ZLayer[ZENV, E1, B])(using
+      B => R
+  ): ZIO[ZENV, E1, A] =
+    provideSomeLayer(layer)
+
+  def provideSomeLayer[R0 <: Has[?], E1 >: E, B <: Has[?]](
+      layer: ZLayer[R0, E1, B]
+  )(using B => R): ZIO[R0, E1, A] =
+    provideLayer(layer)
+
+  def provideLayer[R1, E1 >: E, B](
+      zLayer: ZLayer[R1, E1, B]
+  )(using view: B => R): ZIO[R1, E1, A] =
+    zLayer.zio.map(view).flatMap(r => provide(r))
 
 object ZIO:
   def succeed[A](a: => A): ZIO[Any, Nothing, A] = ZIO(_ => Right(a))

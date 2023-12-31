@@ -57,7 +57,8 @@ object controller:
 object MainZioInjection extends scala.App:
   Runtime.default.unsafeRunSync(
     // program.zio.flatMap(_.get[controller.Controller.Service].run)
-    controller.run.provideLayer(FancyConsole.live >>> layer)
+    // controller.run.provideLayer(FancyConsole.live >>> layer)
+    controller.run.provideSomeLayer(layer).provideLayer(FancyConsole.live)
   )
 
   lazy val layer: ZLayer[console.Console, Nothing, controller.Controller] =
