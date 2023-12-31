@@ -1,10 +1,12 @@
 package myzio
 
+import java.io.IOException
 object google:
   type Google = Has[Google.Service]
   object Google:
     trait Service:
       def count(topic: String): ZIO[Any, Nothing, Int]
+    lazy val any: ZLayer[Google, Nothing, Google] = ZLayer.requires
     lazy val live: ZLayer[Any, Nothing, Google] =
       ZLayer.succeed(make)
     lazy val make: Google.Service = new:
@@ -16,6 +18,7 @@ object bizLogic:
   object BizLogic:
     trait Service:
       def isGoogleResultEven(topic: String): ZIO[Any, Nothing, Boolean]
+    lazy val any: ZLayer[BizLogic, Nothing, BizLogic] = ZLayer.requires
     lazy val live: ZLayer[google.Google, Nothing, BizLogic] =
       ZLayer.fromService(make)
     def make(g: google.Google.Service): Service = new:
@@ -28,7 +31,8 @@ object controller:
   type Controller = Has[Controller.Service]
   object Controller:
     trait Service:
-      def run: ZIO[Any, Nothing, Unit]
+      def run: ZIO[Any, IOException, Unit]
+    lazy val any: ZLayer[Controller, Nothing, Controller] = ZLayer.requires
     lazy val live
         : ZLayer[bizLogic.BizLogic & console.Console, Nothing, Controller] =
       ZLayer.fromServices(make)
@@ -38,7 +42,7 @@ object controller:
         con: console.Console.Service
     ): Service =
       new:
-        override def run: ZIO[Any, Nothing, Unit] =
+        override def run: ZIO[Any, IOException, Unit] =
           for
             _ <- con.printLine("-" * 50)
             cat <- bl.isGoogleResultEven("cat")
@@ -47,18 +51,17 @@ object controller:
             _ <- con.printLine(dog.toString)
             _ <- con.printLine("-" * 50)
           yield ()
-  lazy val run: ZIO[controller.Controller, Nothing, Unit] =
+  lazy val run: ZIO[controller.Controller, IOException, Unit] =
     ZIO.accessM(_.get[Controller.Service].run)
 
 object MainZioInjection extends scala.App:
   Runtime.default.unsafeRunSync(
     // program.zio.flatMap(_.get[controller.Controller.Service].run)
-    controller.run.provideLayer(layer)
+    controller.run.provideLayer(FancyConsole.live >>> layer)
   )
 
   lazy val layer: ZLayer[console.Console, Nothing, controller.Controller] =
     val bizLayer: ZLayer[Any, Nothing, bizLogic.BizLogic] =
       google.Google.live >>> bizLogic.BizLogic.live
-    val consoleLayer: ZLayer[console.Console, Nothing, console.Console] =
-      ZLayer.identity[console.Console]
-    (bizLayer ++ consoleLayer) >>> controller.Controller.live
+
+    (bizLayer ++ (console.Console.any)) >>> controller.Controller.live

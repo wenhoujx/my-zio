@@ -1,6 +1,7 @@
 package myzio
 
 import scala.reflect.ClassTag
+import java.io.IOException
 
 case class ZIO[-R, +E, +A](run: R => Either[E, A]):
   def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
@@ -62,14 +63,15 @@ object console:
   type Console = Has[Console.Service]
   object Console:
     trait Service:
-      def printLine(line: => String): ZIO[Any, Nothing, Unit]
-      def getLine: ZIO[Any, Nothing, String]
+      def printLine(line: => String): ZIO[Any, IOException, Unit]
+      def getLine: ZIO[Any, IOException, String]
+    lazy val any: ZLayer[Console, Nothing, Console] = ZLayer.requires[Console]
     lazy val live: ZLayer[Any, Nothing, Console] = ZLayer.succeed(make)
     lazy val make: Service =
       new:
-        override def getLine: ZIO[Any, Nothing, String] =
+        override def getLine: ZIO[Any, IOException, String] =
           ZIO.succeed(scala.io.StdIn.readLine())
-        override def printLine(line: => String): ZIO[Any, Nothing, Unit] =
+        override def printLine(line: => String): ZIO[Any, IOException, Unit] =
           ZIO.succeed(println(line))
 
 object Runtime:
@@ -125,6 +127,7 @@ final class ZLayer[-R, +E, +A](val zio: ZIO[R, E, A]):
     this.zip(that).map((a, b) => view(a).union(b).asInstanceOf[A & B])
 
 object ZLayer:
+  def requires[R]: ZLayer[R, Nothing, R] = identity
   def identity[R]: ZLayer[R, Nothing, R] =
     ZLayer(ZIO.identity[R])
   def succeed[A: ClassTag](a: => A): ZLayer[Any, Nothing, Has[A]] =
